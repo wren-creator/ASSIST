@@ -21,7 +21,9 @@ ollama:
 voice:
   stt_model: "base"       # faster-whisper size: tiny / base / small
   tts_engine: "say"
-  say_voice: "Daniel"     # any name from `say -v ?`; Daniel reads dry and calm
+  say_voice: "Oliver (Enhanced)"   # any name from `say -v ?`; en-GB, calm. Download via Spoken Content.
+  say_rate: 160           # words per minute for `say`. 0 = system default (~175).
+                          # 155-170 reads calmer / more deliberate. Only affects the `say` engine.
   kokoro_voice: "am_michael"
   piper_model: ""         # absolute path to a .onnx voice if tts_engine: piper
 
