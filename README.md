@@ -8,8 +8,9 @@ tells you out loud when Claude needs you or finishes something, answers "what's
 it working on" from your couch, and buzzes your phone when you've walked away
 from the desk.
 
-It does **not** drive Claude Code. It observes. Starting and steering sessions
-from the phone, with tool-by-tool approvals, is a later phase (see Roadmap).
+It mostly observes. It can also **kick off a one-shot build** in a new folder
+from the phone ("+ task"), but it doesn't yet let you steer a live session with
+tool-by-tool approvals, that's the next phase (see Roadmap).
 
 ## How it works
 
@@ -22,7 +23,7 @@ Claude Code (VSCode)              ASSIST host (this repo)                  You
       |  each event, exits 0 fast       faster-whisper  (speech in, local)
                                         say / Kokoro / Piper (voice out, local)
                                         Ollama qwen2.5-coder:7b (narration + Q&A, local)
-                                        claude -p (only on "ask claude ...")
+                                        claude -p ("ask claude ..." + "+ task" builds)
 ```
 
 Everything runs on your machine. The only outbound calls are the optional
@@ -91,9 +92,10 @@ so a stopped or slow ASSIST host never delays a Claude Code turn.
 
 - **Speech in:** `faster-whisper` (`base` model, CPU/int8), the same engine the
   youtube-bridge already uses. First use downloads the model.
-- **Speech out:** defaults to macOS `say` (zero install). For a better voice,
-  `pip install kokoro` and set `voice.tts_engine: kokoro` in `backend/config.yaml`.
-  `piper` is the lighter-weight option.
+- **Speech out:** macOS `say` with the `Oliver (Enhanced)` en-GB voice at 160
+  wpm (`voice.say_voice` / `voice.say_rate`). For a fully local non-`say` voice,
+  `pip install kokoro` and set `voice.tts_engine: kokoro`; `piper` is the
+  lighter option.
 
 ### Discord push (optional)
 
@@ -118,8 +120,16 @@ Put the channel id in `backend/config.yaml` under `discord.channel_id` and set
 - **Ask it something:** hold the **HOLD** button and talk, or type. Questions
   about your sessions are answered locally from the event log.
 - **Escalate to real Claude:** start your question with "ask claude ..." and it
-  runs `claude -p` in the active project and speaks the answer back. This is the
-  only path that spends your Claude subscription budget.
+  runs `claude -p` in the active project and speaks the answer back.
+- **Start a project from the phone ("+ task"):** name a project and give it a
+  prompt. ASSIST makes the folder under `tasks.projects_root` (`~/git`), `git
+  init`s it, and runs a one-shot `claude -p` build, streaming each tool call to
+  the feed and speaking a summary when it's done. No approvals, no follow-ups.
+  New folders run with permissions bypassed (nothing there to break); tick
+  "existing project" to run in a folder that's already there (defaults to
+  `acceptEdits`). Concurrency is capped in config.
+
+The last two are the paths that spend your Claude subscription budget.
 
 ## Config
 
@@ -134,20 +144,25 @@ backend/
   main.py          FastAPI app: POST /hook, WS /ws, static mount
   events.py        ring buffer + events.jsonl audit trail
   narrate.py       Ollama narration/Q&A + "ask claude" escalation
+  claude_runner.py run_oneshot() / run_stream() around `claude -p`
+  tasks.py         "+ task" one-shot project builds
   discord_push.py  optional phone push (token from ~/.discord/.env)
   voice/stt.py     faster-whisper
   voice/tts.py     say / kokoro / piper
   config.yaml
 frontend/          single-page PWA: index.html, app.js, sw.js, manifest.json
 hooks/assist-hook.sh
-scripts/ws_smoke.py   dev smoke test for the /ws path
+scripts/            ws_smoke.py, task_smoke.py  — dev smoke tests
 start.sh stop.sh
 ```
 
 ## Roadmap
 
-- [ ] **Operator mode** — start and steer Claude Code from the phone via the
-      Agent SDK's `can_use_tool` callback; tool-by-tool approve/deny; diff review.
+- [x] **Tier-1 remote tasks** — kick off a one-shot `claude -p` build in a new
+      folder from the phone.
+- [ ] **Operator mode** — start and *steer* a live Claude Code session from the
+      phone via the Agent SDK's `can_use_tool` callback; tool-by-tool
+      approve/deny; diff review.
 - [ ] **Token auth on the host** so loopback + Tailscale isn't the only thing
       standing between it and a shared network.
 - [ ] **Streaming voice** — barge-in and partial transcripts instead of
