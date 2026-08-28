@@ -1,8 +1,8 @@
 // Minimal service worker: makes ASSIST installable as a PWA and serves the
 // app shell offline. The live feed and audio all come over the WebSocket, so
 // there is nothing else worth caching here.
-const SHELL = ["/", "/static/app.js", "/manifest.json", "/static/icon.svg"];
-const CACHE = "assist-shell-v4";
+const SHELL = ["/", "/static/app.js?v=5", "/manifest.json", "/static/icon.svg"];
+const CACHE = "assist-shell-v5";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

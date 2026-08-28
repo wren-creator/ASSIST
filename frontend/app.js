@@ -106,11 +106,13 @@ function addEvent(e) {
   const row = document.createElement("div");
   row.className = `row hook-${e.hook}`;
   row.dataset.session = e.session_id || "";
-  const time = new Date(e.ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const time = new Date(e.ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   row.innerHTML =
-    `<span class="t">${time}</span>` +
-    `<span class="p" title="${escapeHtml(e.project)}">${escapeHtml(e.project)}</span>` +
-    `<span class="s">${escapeHtml(e.summary || e.hook)}</span>`;
+    `<div class="meta">` +
+      `<span class="t">${time}</span>` +
+      `<span class="p" title="${escapeHtml(e.project)}">${escapeHtml(e.project)}</span>` +
+    `</div>` +
+    `<div class="s">${escapeHtml(e.summary || e.hook)}</div>`;
   feedEl.appendChild(row);
 }
 
@@ -305,7 +307,6 @@ function showEnableSound() {
   const b = document.createElement("button");
   b.id = "enableSound";
   b.textContent = "🔊 tap to enable sound";
-  b.style.cssText = "align-self:center;margin:6px 0;padding:8px 14px;border-radius:10px;border:1px solid var(--accent);background:var(--panel-2);color:var(--accent);font:600 12px/1 var(--mono);cursor:pointer";
   b.onclick = unlockAudio;   // pointerdown already fires unlockAudio; this is the visible affordance
   feedEl.appendChild(b);
   scrollFeed();
