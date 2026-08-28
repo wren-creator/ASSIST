@@ -34,7 +34,7 @@
     overflow: hidden;            /* the feed scrolls, the shell stays put */
     background: var(--bg);
     color: var(--text);
-    font: 16px/1.5 var(--sans);
+    font: 14px/1.45 var(--sans);
     display: flex;
     flex-direction: column;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
@@ -50,8 +50,8 @@
   header {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 12px 14px;
+    gap: 8px;
+    padding: 9px 12px;
     border-bottom: 1px solid var(--line);
     background: var(--panel);
     position: sticky;
@@ -60,8 +60,8 @@
   }
   header h1 {
     margin: 0;
-    font: 700 15px/1 var(--mono);
-    letter-spacing: 2px;
+    font: 700 13px/1 var(--mono);
+    letter-spacing: 1.5px;
     flex: 0 0 auto;
   }
   #newTaskBtn {
@@ -70,8 +70,8 @@
     border: 1px solid var(--line);
     color: var(--accent);
     border-radius: 8px;
-    padding: 8px 12px;
-    font: 600 12px/1 var(--mono);
+    padding: 6px 10px;
+    font: 600 11px/1 var(--mono);
     letter-spacing: 1px;
     flex: 0 0 auto;
   }
@@ -85,11 +85,16 @@
   #status.off { color: var(--alert); }
 
   /* ── new-task panel ──────────────────────────────────────────────────── */
+  /* Capped so it can never swallow the feed — it scrolls inside itself. */
   #taskPanel {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px;
+    gap: 8px;
+    padding: 10px 12px;
+    max-height: 42vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border-bottom: 1px solid var(--line);
     background: var(--panel);
   }
@@ -99,35 +104,35 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     color: var(--text);
-    padding: 11px 12px;
+    padding: 9px 11px;
   }
-  #taskPrompt { resize: vertical; min-height: 96px; line-height: 1.45; }
+  #taskPrompt { resize: vertical; min-height: 64px; line-height: 1.4; }
   #taskExisting {
     display: flex;
     align-items: center;
     gap: 8px;
-    font: 500 14px/1 var(--sans);
+    font: 500 13px/1 var(--sans);
     color: var(--dim);
   }
-  #taskExisting input { width: 18px; height: 18px; }
-  .taskRow { display: flex; gap: 10px; }
+  #taskExisting input { width: 17px; height: 17px; }
+  .taskRow { display: flex; gap: 8px; }
   .taskRow button {
     flex: 1;
     background: var(--panel-2);
     border: 1px solid var(--line);
     color: var(--text);
     border-radius: 10px;
-    padding: 12px 16px;
-    font: 600 14px/1 var(--sans);
+    padding: 9px 14px;
+    font: 600 13px/1 var(--sans);
   }
   #taskStart { background: var(--accent); border-color: var(--accent); color: #06121f; }
-  #taskMsg { font: 500 13px/1.4 var(--sans); color: var(--warn); min-height: 1em; }
+  #taskMsg { font: 500 12px/1.4 var(--sans); color: var(--warn); min-height: 1em; }
 
   /* ── session filter chips ───────────────────────────────────────────── */
   #sessions {
     display: flex;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-bottom: 1px solid var(--line);
@@ -137,25 +142,25 @@
   #sessions::-webkit-scrollbar { display: none; }
   .chip {
     flex: 0 0 auto;
-    padding: 8px 14px;
+    padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid var(--line);
     background: var(--panel-2);
     color: var(--dim);
-    font: 600 13px/1 var(--mono);
+    font: 600 12px/1 var(--mono);
     white-space: nowrap;
   }
   .chip.active { color: #06121f; background: var(--accent); border-color: var(--accent); }
 
   /* ── feed ───────────────────────────────────────────────────────────── */
   main {
-    flex: 1;
+    flex: 1 1 0;
     min-height: 0;               /* let this pane shrink so it can scroll, not grow the page */
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -182,7 +187,7 @@
   }
   .row .s {
     color: var(--text);
-    font: 400 14px/1.45 var(--sans);
+    font: 400 13px/1.4 var(--sans);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -196,9 +201,9 @@
 
   .bubble {
     max-width: 90%;
-    padding: 10px 13px;
+    padding: 9px 12px;
     border-radius: 13px;
-    font: 400 15px/1.5 var(--sans);
+    font: 400 14px/1.45 var(--sans);
     overflow-wrap: anywhere;
   }
   .bubble.you    { align-self: flex-end; background: var(--panel-2); border: 1px solid var(--line); }
@@ -225,7 +230,7 @@
   footer {
     border-top: 1px solid var(--line);
     background: var(--panel);
-    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
     display: flex;
     gap: 8px;
     align-items: stretch;
@@ -234,12 +239,12 @@
   }
   #mute {
     flex: 0 0 auto;
-    width: 46px;
+    width: 42px;
     border-radius: 10px;
     border: 1px solid var(--line);
     background: var(--panel-2);
     color: var(--dim);
-    font-size: 18px;
+    font-size: 16px;
   }
   #mute.off { color: var(--alert); }
   #text {
@@ -249,12 +254,12 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     color: var(--text);
-    padding: 11px 13px;
+    padding: 10px 12px;
   }
   #ptt {
     flex: 0 0 auto;
-    width: 76px;
-    min-height: 46px;
+    width: 64px;
+    min-height: 42px;
     border-radius: 10px;
     border: 1px solid var(--line);
     background: var(--panel-2);
@@ -267,8 +272,30 @@
   }
   #ptt.rec { background: var(--alert); border-color: var(--alert); color: #200; }
 
+  /* ── responsive tiers ───────────────────────────────────────────────── */
+  /* Base is sized for a phone. Large phones get a small bump; tablets and
+     up get the centered column back with roomier spacing. */
+  @media (min-width: 560px) {
+    body { font-size: 15px; }
+  }
   @media (min-width: 620px) {
     body { max-width: 720px; margin: 0 auto; border-inline: 1px solid var(--line); }
+    header { padding: 12px 16px; }
+    header h1 { font-size: 15px; letter-spacing: 2px; }
+    #newTaskBtn { padding: 8px 12px; font-size: 12px; }
+    #taskPanel { max-height: 52vh; padding: 14px 16px; gap: 10px; }
+    #taskName, #taskPrompt { padding: 11px 12px; }
+    #taskPrompt { min-height: 88px; }
+    .taskRow button { padding: 12px 16px; font-size: 14px; }
+    #sessions { padding: 10px 12px; }
+    .chip { padding: 8px 14px; font-size: 13px; }
+    main { padding: 14px; }
+    .row .s { font-size: 14px; }
+    .bubble { font-size: 15px; padding: 10px 13px; }
+    footer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+    #mute { width: 46px; font-size: 18px; }
+    #text { padding: 11px 13px; }
+    #ptt { width: 76px; min-height: 46px; }
   }
 </style>
 </head>
