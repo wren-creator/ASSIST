@@ -1,0 +1,48 @@
+# ASSIST configuration. All local. Nothing here is a secret except that the
+# Discord bot token is read separately from ~/.discord/.env (never stored here).
+
+server:
+  host: "0.0.0.0"        # 0.0.0.0 so the phone can reach it over the LAN
+  port: 8787
+  event_buffer: 400      # how many recent hook events to keep in memory for the feed + narration
+
+# Local model used for narration and "what's it doing" answers. Keep this small —
+# on limited RAM, qwen2.5-coder:7b or llama3 are the safe choices, NOT the 14b.
+ollama:
+  url: "http://localhost:11434/api/chat"
+  model: "qwen2.5-coder:7b"
+  timeout_seconds: 30
+  num_predict: 180        # short spoken answers, keeps latency down
+
+# Speech. stt is always faster-whisper. tts picks the first engine that works:
+#   say     -> macOS built-in `say`, zero install, always available (default)
+#   kokoro  -> `pip install kokoro`, best quality on Apple Silicon
+#   piper   -> `pip install piper-tts`, lighter CPU option
+voice:
+  stt_model: "base"       # faster-whisper size: tiny / base / small
+  tts_engine: "say"
+  say_voice: "Daniel"     # any name from `say -v ?`; Daniel reads dry and calm
+  kokoro_voice: "am_michael"
+  piper_model: ""         # absolute path to a .onnx voice if tts_engine: piper
+
+# Which hook events get spoken aloud + pushed to Discord vs. just shown in the feed.
+announce:
+  - Notification          # Claude needs input or permission
+  - Stop                  # Claude finished a turn
+# Everything else (SessionStart, UserPromptSubmit, PostToolUse, SessionEnd) is feed-only.
+
+# No spoken announcements during these hours (24h local). Feed + Discord still update.
+quiet_hours:
+  start: 22
+  end: 8
+
+# Escalating a spoken question to real Claude (spends Pro budget). Only fires on an
+# explicit "ask claude ..." phrasing from the user.
+ask_claude:
+  enabled: true
+  binary: "claude"
+  timeout_seconds: 120
+
+discord:
+  enabled: false          # flip to true once channel_id is set
+  channel_id: ""          # numeric channel id; `python -m backend.discord_push --list-guilds` helps find it
