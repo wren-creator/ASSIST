@@ -44,12 +44,54 @@
     letter-spacing: 3px;
     margin: 0;
   }
-  #status {
+  #newTaskBtn {
     margin-left: auto;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--accent);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font: 600 11px/1 var(--mono);
+    letter-spacing: 1px;
+    cursor: pointer;
+  }
+  #status {
+    margin-left: 10px;
     font: 600 11px/1 var(--mono);
     letter-spacing: 1px;
     color: var(--dim);
   }
+  #taskPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  #taskPanel input[type=text], #taskName, #taskPrompt {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 9px 11px;
+    font: inherit;
+    width: 100%;
+  }
+  #taskPrompt { resize: vertical; font-family: var(--mono); font-size: 13px; }
+  #taskExisting { font: 500 12px/1 var(--mono); color: var(--dim); display: flex; align-items: center; gap: 6px; }
+  .taskRow { display: flex; gap: 8px; justify-content: flex-end; }
+  .taskRow button {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 16px;
+    font: 600 12px/1 var(--mono);
+    cursor: pointer;
+  }
+  #taskStart { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  #taskMsg { font: 500 12px/1.4 var(--mono); color: var(--warn); min-height: 1em; }
   #status.on { color: var(--ok); }
   #status.off { color: var(--alert); }
 
@@ -97,6 +139,7 @@
   .row.hook-Notification .s { color: var(--warn); }
   .row.hook-Stop .s { color: var(--ok); }
   .row.hook-SessionStart .s, .row.hook-SessionEnd .s { color: var(--dim); font-style: italic; }
+  .row.hook-Task .s { color: var(--accent); }
 
   .bubble {
     max-width: 82%;
@@ -155,8 +198,20 @@
 <body>
 <header>
   <h1>ASSIST</h1>
+  <button id="newTaskBtn" title="start a project from here">+ task</button>
   <span id="status" class="off">connecting</span>
 </header>
+
+<div id="taskPanel" hidden>
+  <input id="taskName" placeholder="project name  (e.g. job-scraper)" autocomplete="off">
+  <label id="taskExisting"><input type="checkbox" id="taskExistingCb"> existing project</label>
+  <textarea id="taskPrompt" rows="4" placeholder="what should Claude build? be specific."></textarea>
+  <div class="taskRow">
+    <button id="taskCancel">cancel</button>
+    <button id="taskStart">start</button>
+  </div>
+  <div id="taskMsg"></div>
+</div>
 
 <div id="sessions"></div>
 
@@ -168,6 +223,6 @@
   <button id="ptt">HOLD</button>
 </footer>
 
-<script src="/static/app.js?v=3"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>
