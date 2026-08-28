@@ -7,13 +7,10 @@ const feedEl     = document.getElementById("feed");
 const textEl     = document.getElementById("text");
 const pttEl      = document.getElementById("ptt");
 const muteEl     = document.getElementById("mute");
-const player     = document.getElementById("player");
 
 let ws = null;
 let activeSession = null;          // session_id filter, or null for "all"
 let muted = false;
-const audioQueue = [];
-let playing = false;
 
 // --- websocket ----------------------------------------------------------------
 function connect() {
@@ -156,7 +153,7 @@ muteEl.addEventListener("click", () => {
   muted = !muted;
   muteEl.classList.toggle("off", muted);
   muteEl.innerHTML = muted ? "&#128263;" : "&#128266;";
-  if (muted) { audioQueue.length = 0; player.pause(); }
+  if (muted) pendingBuffers.length = 0;
 });
 
 // --- push to talk --------------------------------------------------------------
@@ -213,69 +210,80 @@ pttEl.addEventListener("pointerup", (e) => { e.preventDefault(); stopRec(); });
 pttEl.addEventListener("pointercancel", stopRec);
 pttEl.addEventListener("pointerleave", stopRec);
 
-// --- audio playback queue ----------------------------------------------------------
-// iOS Safari won't play audio until a real user gesture has "unlocked" the
-// element, and it's flaky with large data: URIs. So: unlock on the first tap
-// anywhere, and feed it blob URLs, not data URIs.
-let audioUnlocked = false;
-let pendingAudio = null;   // last clip we couldn't play; offered as "tap to play"
+// --- audio playback (Web Audio API) ------------------------------------------------
+// The <audio> element route is unreliable on iOS: play() with no src rejects, so
+// a gesture "unlock" silently fails. Web Audio is the dependable path: create the
+// AudioContext inside a real tap, resume() it, then play decoded PCM buffers.
+let actx = null;
+let audioReady = false;
+const pendingBuffers = [];        // ArrayBuffers received before audio was ready
+let playChain = Promise.resolve();
 
 function unlockAudio() {
-  if (audioUnlocked) return;
-  player.muted = true;
-  player.play().then(() => {
-    player.pause();
-    player.currentTime = 0;
-    player.muted = false;
-    audioUnlocked = true;
-    if (pendingAudio) { const u = pendingAudio; pendingAudio = null; audioQueue.push(u); if (!playing) playNext(); }
-  }).catch(() => { player.muted = false; });
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  } catch (e) { return; }
+  const done = () => { audioReady = true; hideEnableSound(); drainPending(); };
+  if (actx.state === "running") done();
+  else actx.resume().then(done).catch(() => {});
 }
-document.addEventListener("pointerdown", unlockAudio, { once: false });
+document.addEventListener("pointerdown", unlockAudio);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && actx && actx.state === "suspended") actx.resume().catch(() => {});
+});
 
-function b64ToBlobUrl(mime, b64) {
+function b64ToArrayBuffer(b64) {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return URL.createObjectURL(new Blob([bytes], { type: mime || "audio/wav" }));
+  return bytes.buffer;
 }
 
 function enqueueAudio(mime, b64) {
-  const url = b64ToBlobUrl(mime, b64);
-  if (!audioUnlocked) { pendingAudio = url; showTapToPlay(); return; }
-  audioQueue.push(url);
-  if (!playing) playNext();
+  if (muted) return;
+  const buf = b64ToArrayBuffer(b64);
+  if (!audioReady || !actx) { pendingBuffers.push(buf); showEnableSound(); return; }
+  playBuffer(buf);
 }
 
-function playNext() {
-  if (!audioQueue.length) { playing = false; return; }
-  playing = true;
-  const url = audioQueue.shift();
-  player.src = url;
-  player._url = url;
-  player.play().catch(() => { pendingAudio = url; showTapToPlay(); playing = false; });
+function playBuffer(arrbuf) {
+  playChain = playChain.then(() => new Promise((resolve) => {
+    let settled = false;
+    const finish = () => { if (!settled) { settled = true; resolve(); } };
+    try {
+      actx.decodeAudioData(
+        arrbuf,
+        (audioBuf) => {
+          const src = actx.createBufferSource();
+          src.buffer = audioBuf;
+          src.connect(actx.destination);
+          src.onended = finish;
+          src.start();
+        },
+        finish
+      );
+    } catch (e) { finish(); }
+  }));
 }
 
-function cleanupUrl() {
-  if (player._url) { URL.revokeObjectURL(player._url); player._url = null; }
+function drainPending() {
+  while (pendingBuffers.length) playBuffer(pendingBuffers.shift());
 }
-player.addEventListener("ended", () => { cleanupUrl(); playNext(); });
-player.addEventListener("error", () => { cleanupUrl(); playNext(); });
 
-function showTapToPlay() {
-  if (document.getElementById("tapPlay")) return;
+function showEnableSound() {
+  if (document.getElementById("enableSound")) return;
   const b = document.createElement("button");
-  b.id = "tapPlay";
-  b.textContent = "🔊 tap to play ASSIST";
+  b.id = "enableSound";
+  b.textContent = "🔊 tap to enable sound";
   b.style.cssText = "align-self:center;margin:6px 0;padding:8px 14px;border-radius:10px;border:1px solid var(--accent);background:var(--panel-2);color:var(--accent);font:600 12px/1 var(--mono);cursor:pointer";
-  b.onclick = () => {
-    audioUnlocked = true;
-    b.remove();
-    if (pendingAudio) { audioQueue.push(pendingAudio); pendingAudio = null; }
-    if (!playing) playNext();
-  };
+  b.onclick = unlockAudio;   // pointerdown already fires unlockAudio; this is the visible affordance
   feedEl.appendChild(b);
   scrollFeed();
+}
+
+function hideEnableSound() {
+  const b = document.getElementById("enableSound");
+  if (b) b.remove();
 }
 
 // --- go --------------------------------------------------------------------------
