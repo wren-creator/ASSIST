@@ -30,7 +30,8 @@
     overflow-x: hidden;
   }
   body {
-    min-height: 100dvh;
+    height: 100dvh;
+    overflow: hidden;            /* the feed scrolls, the shell stays put */
     background: var(--bg);
     color: var(--text);
     font: 16px/1.5 var(--sans);
@@ -149,8 +150,11 @@
   /* ── feed ───────────────────────────────────────────────────────────── */
   main {
     flex: 1;
+    min-height: 0;               /* let this pane shrink so it can scroll, not grow the page */
     overflow-y: auto;
     overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     padding: 12px;
     display: flex;
     flex-direction: column;
