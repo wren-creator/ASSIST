@@ -214,19 +214,69 @@ pttEl.addEventListener("pointercancel", stopRec);
 pttEl.addEventListener("pointerleave", stopRec);
 
 // --- audio playback queue ----------------------------------------------------------
+// iOS Safari won't play audio until a real user gesture has "unlocked" the
+// element, and it's flaky with large data: URIs. So: unlock on the first tap
+// anywhere, and feed it blob URLs, not data URIs.
+let audioUnlocked = false;
+let pendingAudio = null;   // last clip we couldn't play; offered as "tap to play"
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  player.muted = true;
+  player.play().then(() => {
+    player.pause();
+    player.currentTime = 0;
+    player.muted = false;
+    audioUnlocked = true;
+    if (pendingAudio) { const u = pendingAudio; pendingAudio = null; audioQueue.push(u); if (!playing) playNext(); }
+  }).catch(() => { player.muted = false; });
+}
+document.addEventListener("pointerdown", unlockAudio, { once: false });
+
+function b64ToBlobUrl(mime, b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mime || "audio/wav" }));
+}
+
 function enqueueAudio(mime, b64) {
-  audioQueue.push("data:" + (mime || "audio/wav") + ";base64," + b64);
+  const url = b64ToBlobUrl(mime, b64);
+  if (!audioUnlocked) { pendingAudio = url; showTapToPlay(); return; }
+  audioQueue.push(url);
   if (!playing) playNext();
 }
 
 function playNext() {
   if (!audioQueue.length) { playing = false; return; }
   playing = true;
-  player.src = audioQueue.shift();
-  player.play().catch(() => {});
+  const url = audioQueue.shift();
+  player.src = url;
+  player._url = url;
+  player.play().catch(() => { pendingAudio = url; showTapToPlay(); playing = false; });
 }
-player.addEventListener("ended", playNext);
-player.addEventListener("error", playNext);
+
+function cleanupUrl() {
+  if (player._url) { URL.revokeObjectURL(player._url); player._url = null; }
+}
+player.addEventListener("ended", () => { cleanupUrl(); playNext(); });
+player.addEventListener("error", () => { cleanupUrl(); playNext(); });
+
+function showTapToPlay() {
+  if (document.getElementById("tapPlay")) return;
+  const b = document.createElement("button");
+  b.id = "tapPlay";
+  b.textContent = "🔊 tap to play ASSIST";
+  b.style.cssText = "align-self:center;margin:6px 0;padding:8px 14px;border-radius:10px;border:1px solid var(--accent);background:var(--panel-2);color:var(--accent);font:600 12px/1 var(--mono);cursor:pointer";
+  b.onclick = () => {
+    audioUnlocked = true;
+    b.remove();
+    if (pendingAudio) { audioQueue.push(pendingAudio); pendingAudio = null; }
+    if (!playing) playNext();
+  };
+  feedEl.appendChild(b);
+  scrollFeed();
+}
 
 // --- go --------------------------------------------------------------------------
 if ("serviceWorker" in navigator) {

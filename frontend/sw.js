@@ -2,7 +2,7 @@
 // app shell offline. The live feed and audio all come over the WebSocket, so
 // there is nothing else worth caching here.
 const SHELL = ["/", "/static/app.js", "/manifest.json", "/static/icon.svg"];
-const CACHE = "assist-shell-v1";
+const CACHE = "assist-shell-v2";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
