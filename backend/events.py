@@ -50,6 +50,8 @@ def record(raw: dict[str, Any]) -> dict[str, Any]:
 def _summarise(raw: dict[str, Any]) -> str:
     """A short human line for the feed and for narration context."""
     hook = raw.get("hook_event_name") or raw.get("hook") or "event"
+    if raw.get("summary_hint"):
+        return str(raw["summary_hint"])[:200]
     tool = raw.get("tool_name", "")
     ti = raw.get("tool_input") or {}
 

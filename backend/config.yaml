@@ -45,6 +45,19 @@ ask_claude:
   binary: "claude"
   timeout_seconds: 120
 
+# Tier-1 remote tasks: from the phone, name a project + a prompt and ASSIST runs
+# a one-shot `claude -p` build for it, no approvals. Spends the Claude
+# subscription budget. New folders run with bypassPermissions (nothing there to
+# break); existing folders default to acceptEdits.
+tasks:
+  enabled: true
+  projects_root: "~/git"
+  timeout_seconds: 900
+  max_concurrent: 2
+  git_init: true
+  new_project_permission_mode: "bypassPermissions"
+  existing_project_permission_mode: "acceptEdits"
+
 discord:
   enabled: false          # flip to true once channel_id is set
   channel_id: ""          # numeric channel id; `python -m backend.discord_push --list-guilds` helps find it

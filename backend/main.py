@@ -23,7 +23,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, discord_push, events, narrate
+from . import config, discord_push, events, narrate, tasks
 from .voice import stt, tts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -130,6 +130,16 @@ async def _handle_ws_message(ws: WebSocket, msg: dict) -> None:
             await _respond(ws, question, session_id)
         return
 
+    if kind == "new_task":
+        res = await tasks.start_task(
+            (msg.get("name") or "").strip(),
+            (msg.get("prompt") or "").strip(),
+            existing=bool(msg.get("existing")),
+            broadcast=broadcast,
+        )
+        await ws.send_json({"type": "task_ack", **res})
+        return
+
     if kind == "audio":
         try:
             audio = base64.b64decode(msg.get("data", ""))
@@ -169,6 +179,11 @@ def api_events(limit: int = 100, session_id: str | None = None):
 @app.get("/api/sessions")
 def api_sessions():
     return events.active_sessions()
+
+
+@app.get("/api/tasks")
+def api_tasks():
+    return tasks.running()
 
 
 @app.get("/api/health")

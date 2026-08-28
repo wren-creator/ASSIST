@@ -7,13 +7,12 @@ Expensive   : shell out to `claude -p` in a project dir, only on an explicit
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import re
 
 import aiohttp
 
-from . import config, events
+from . import claude_runner, config, events
 
 log = logging.getLogger("assist.narrate")
 
@@ -91,24 +90,6 @@ async def _ask_claude(prompt: str, session_id: str | None) -> str:
         cwd = sessions[0]["cwd"]
     cwd = cwd or "."
 
-    binary = config.get("ask_claude", "binary", default="claude")
     timeout = config.get("ask_claude", "timeout_seconds", default=120)
     log.info("ask_claude in %s: %s", cwd, prompt)
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            binary, "-p", prompt, "--output-format", "json",
-            cwd=cwd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-        )
-        out, err = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        return "Claude took too long to answer that one."
-    except FileNotFoundError:
-        return f"I can't find the {binary} command to ask Claude."
-    if proc.returncode != 0:
-        log.error("claude -p failed: %s", err.decode()[:400])
-        return "Claude returned an error on that."
-    try:
-        data = json.loads(out.decode())
-        return (data.get("result") or data.get("response") or out.decode()).strip()
-    except json.JSONDecodeError:
-        return out.decode().strip() or "Claude gave an empty answer."
+    return await claude_runner.run_oneshot(prompt, cwd, timeout)

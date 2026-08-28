@@ -7,6 +7,12 @@ const feedEl     = document.getElementById("feed");
 const textEl     = document.getElementById("text");
 const pttEl      = document.getElementById("ptt");
 const muteEl     = document.getElementById("mute");
+const newTaskBtn = document.getElementById("newTaskBtn");
+const taskPanel  = document.getElementById("taskPanel");
+const taskName   = document.getElementById("taskName");
+const taskPrompt = document.getElementById("taskPrompt");
+const taskExistingCb = document.getElementById("taskExistingCb");
+const taskMsg    = document.getElementById("taskMsg");
 
 let ws = null;
 let activeSession = null;          // session_id filter, or null for "all"
@@ -63,8 +69,32 @@ function handle(msg) {
     case "error":
       addBubble("assist", "⚠ " + msg.text);
       break;
+    case "task_ack":
+      if (msg.ok) {
+        taskMsg.textContent = "";
+        taskPanel.hidden = true;
+        taskName.value = ""; taskPrompt.value = ""; taskExistingCb.checked = false;
+        addBubble("assist", "task started in " + msg.dir);
+      } else {
+        taskMsg.textContent = msg.error || "couldn't start that";
+      }
+      break;
   }
 }
+
+// --- new task panel ------------------------------------------------------------
+newTaskBtn.addEventListener("click", () => {
+  taskPanel.hidden = !taskPanel.hidden;
+  if (!taskPanel.hidden) taskName.focus();
+});
+document.getElementById("taskCancel").addEventListener("click", () => { taskPanel.hidden = true; taskMsg.textContent = ""; });
+document.getElementById("taskStart").addEventListener("click", () => {
+  const name = taskName.value.trim();
+  const prompt = taskPrompt.value.trim();
+  if (!name || !prompt) { taskMsg.textContent = "need a name and a prompt"; return; }
+  taskMsg.textContent = "starting…";
+  send({ type: "new_task", name, prompt, existing: taskExistingCb.checked });
+});
 
 // --- feed rendering ----------------------------------------------------------
 function visible(sessionId) {
