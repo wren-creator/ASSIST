@@ -156,22 +156,14 @@ scripts/            ws_smoke.py, task_smoke.py  — dev smoke tests
 start.sh stop.sh
 ```
 
-## Roadmap
+## Docs
 
-- [x] **Tier-1 remote tasks** — kick off a one-shot `claude -p` build in a new
-      folder from the phone.
-- [ ] **Operator mode** — start and *steer* a live Claude Code session from the
-      phone via the Agent SDK's `can_use_tool` callback; tool-by-tool
-      approve/deny; diff review.
-- [ ] **Token auth on the host** so loopback + Tailscale isn't the only thing
-      standing between it and a shared network.
-- [ ] **Streaming voice** — barge-in and partial transcripts instead of
-      push-to-talk; a wake word.
-- [ ] **Cross-device conversation** — SQLite-backed shared history so a thread
-      started on the laptop continues on the phone.
-- [ ] **Native Web Push** — replace the Discord relay with real PWA
-      notifications.
-- [ ] **Kokoro as the default voice** once the install path is smoothed.
+- [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, the flows, the decisions and
+  why, the security model, what it deliberately doesn't do.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — what's shipped and what's next, in
+  phases. Short version: v1 is done (observe, voice, one-shot builds); next is
+  token auth and task controls, then operator mode (steer a live session with
+  per-tool approvals).
 
 ## License
 
