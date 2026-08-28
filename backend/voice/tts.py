@@ -43,10 +43,13 @@ def _say(text: str) -> bytes:
     if not shutil.which("say"):
         raise RuntimeError("macOS `say` not available")
     voice = config.get("voice", "say_voice", default="Daniel")
+    rate = config.get("voice", "say_rate", default=0)
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as tmp:
         cmd = ["say", "-o", tmp.name, "--data-format=LEI16@22050"]
         if voice:
             cmd += ["-v", voice]
+        if rate and int(rate) > 0:
+            cmd += ["-r", str(int(rate))]
         cmd.append(text)
         import subprocess
 
