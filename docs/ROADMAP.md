@@ -30,6 +30,12 @@ Status markers: `done`, `next`, `planned`, `idea`.
 - [ ] **Task controls from the phone.** Cancel a running task, see elapsed time
       and current step, tail the last N lines. The backend already tracks
       running tasks, so this needs `WS` messages and UI.
+- [ ] **Point a question or task at specific directories.** Right now "ask
+      claude ..." runs in whatever project was last active, so a cross-repo
+      question ("compare A against B") can't see both. Add an optional working
+      directory and `--add-dir` list on the ask and task paths, resolved
+      against a configurable root, so you can aim a question at one repo, two
+      repos, or a parent folder.
 - [ ] **Kokoro as the default voice**, once the install (`espeak-ng`, torch) is
       scripted so `start.sh` can set it up without a manual step.
 - [ ] **Streaming STT.** Partial transcripts as you speak instead of
