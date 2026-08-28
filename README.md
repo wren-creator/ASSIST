@@ -36,9 +36,45 @@ cd ~/git/ASSIST
 ./start.sh                 # creates venv, installs deps, runs the host on :8787
 ```
 
-Then open `http://localhost:8787/` on the Mac, or `http://<mac-lan-ip>:8787/`
-on your phone (same wifi). On the phone, use the browser's "Add to Home Screen"
-to install it as an app.
+Then open `http://localhost:8787/` on the Mac. For phone access, see the next
+section, the host binds to loopback by default.
+
+## Reaching it from your phone
+
+`start.sh` binds to `127.0.0.1` by default. That's deliberate: this laptop
+travels, and on hotel or conference wifi you do not want the host answering to
+everyone on the network (there's no auth on it). Two ways to get the phone in:
+
+### Same wifi only, no VPN
+
+```bash
+ASSIST_BIND=0.0.0.0 ./start.sh
+```
+
+Then `http://<this-mac-ip>:8787/` on the phone. The IP is DHCP and changes;
+`http://$(scutil --get LocalHostName).local:8787/` is usually more stable.
+
+### Anywhere, including on the road (Tailscale)
+
+This is the one that "follows the laptop", the phone reaches the Mac whether
+you're home, on hotel wifi, or the Mac is tethered, and whether the phone is on
+wifi or cell. One stable hostname, set once.
+
+1. Install: `brew install --cask tailscale-app` (needs your password), launch it,
+   **Log in**.
+2. In the admin console (https://login.tailscale.com/admin/dns) enable
+   **MagicDNS** and **HTTPS Certificates**.
+3. Put HTTPS in front of the host (keeps loopback binding; HTTPS is required for
+   the phone mic to work):
+   ```bash
+   /Applications/Tailscale.app/Contents/MacOS/Tailscale serve --bg 8787
+   ```
+4. Install Tailscale on the phone from the App Store, log in with the same account.
+5. On the phone, open `https://<this-mac-name>.<your-tailnet>.ts.net/` (the exact
+   URL is printed by `tailscale serve status`). Add to Home Screen.
+
+Nothing in ASSIST changes, the web client talks to whatever host you loaded it
+from. The Mac has to be awake and online; `caffeinate -s` while it runs.
 
 ### Hooks
 
@@ -112,7 +148,8 @@ start.sh stop.sh
 
 - [ ] **Operator mode** — start and steer Claude Code from the phone via the
       Agent SDK's `can_use_tool` callback; tool-by-tool approve/deny; diff review.
-- [ ] **Tailscale / Cloudflare Tunnel** — reach the host from off the LAN.
+- [ ] **Token auth on the host** so loopback + Tailscale isn't the only thing
+      standing between it and a shared network.
 - [ ] **Streaming voice** — barge-in and partial transcripts instead of
       push-to-talk; a wake word.
 - [ ] **Cross-device conversation** — SQLite-backed shared history so a thread

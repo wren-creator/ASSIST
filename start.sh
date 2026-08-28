@@ -25,8 +25,17 @@ fi
 source venv/bin/activate
 
 PORT="${ASSIST_PORT:-8787}"
-echo "Starting ASSIST host on :$PORT ..."
-nohup python3 -m uvicorn backend.main:app --host 0.0.0.0 --port "$PORT" >> "$LOG_FILE" 2>&1 &
+# Bind address. Default 127.0.0.1: reachable only from this Mac and from
+# `tailscale serve`, which is what you want on untrusted wifi while traveling —
+# nobody else on the hotel/conference network can hit the host directly.
+# Set ASSIST_BIND=0.0.0.0 for plain home-LAN access without Tailscale.
+BIND="${ASSIST_BIND:-127.0.0.1}"
+echo "Starting ASSIST host on $BIND:$PORT ..."
+nohup python3 -m uvicorn backend.main:app --host "$BIND" --port "$PORT" >> "$LOG_FILE" 2>&1 &
 echo $! > "$PID_FILE"
 echo "ASSIST started (PID $(cat "$PID_FILE")). Logs: $LOG_FILE"
-echo "Open http://localhost:$PORT/ on this Mac, or http://<mac-lan-ip>:$PORT/ on your phone."
+if [ "$BIND" = "127.0.0.1" ]; then
+    echo "Loopback only. Phone access is via 'tailscale serve $PORT' (see README)."
+else
+    echo "Open http://localhost:$PORT/ here, or http://<this-mac-ip>:$PORT/ on the same wifi."
+fi
