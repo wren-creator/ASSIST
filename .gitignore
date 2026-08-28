@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+assist.pid
+assist.log
+backend/events.jsonl
+.DS_Store

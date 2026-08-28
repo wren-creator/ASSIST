@@ -1,0 +1,15 @@
+# ASSIST — Jarvis-style observer + voice layer for Claude Code
+# Python 3.11+
+
+fastapi>=0.110
+uvicorn[standard]>=0.27
+aiohttp>=3.9.0
+pyyaml>=6.0
+python-multipart>=0.0.9
+
+# Local speech-to-text. Same model the youtube-bridge already uses.
+faster-whisper>=1.0.0
+
+# Optional local TTS engines (config.yaml picks one; macOS `say` needs nothing).
+#   pip install kokoro       # best quality on Apple Silicon, pulls in torch
+#   pip install piper-tts    # lighter, CPU-friendly
