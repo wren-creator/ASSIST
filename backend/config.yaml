@@ -5,6 +5,12 @@ server:
   host: "0.0.0.0"        # 0.0.0.0 so the phone can reach it over the LAN
   port: 8787
   event_buffer: 400      # how many recent hook events to keep in memory for the feed + narration
+  session_idle_timeout: 1800   # seconds a session can go silent before its chip drops off.
+                               # SessionEnd drops it at once; this is the backstop for a missed
+                               # SessionEnd. 30 min so a long silent build/test run mid-turn
+                               # doesn't vanish (PreToolUse isn't a wired hook, so there's no
+                               # event during a long command — an in-progress turn is held by
+                               # its UserPromptSubmit until Stop).
 
 # Local model used for narration and "what's it doing" answers. Keep this small —
 # on limited RAM, qwen2.5-coder:7b or llama3 are the safe choices, NOT the 14b.

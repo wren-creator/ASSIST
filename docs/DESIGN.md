@@ -59,12 +59,18 @@ Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         
 - **`backend/main.py`**: the FastAPI app. `POST /hook` records events and, for
   `Notification` and `Stop`, spawns an announcement task. `WS /ws` is the
   phone's connection. It gets the live feed and spoken audio, and sends
-  push-to-talk audio, typed questions, and `new_task` requests back. `GET
-  /api/events`, `/api/sessions`, `/api/tasks`, `/api/health` are for debugging.
+  push-to-talk audio, typed questions, and `new_task` requests back. After every
+  hook it broadcasts a `sessions` message with the current live-session list, and
+  a 15s background sweep re-sends that list when an idle timeout changes it with
+  no new event to ride on. `GET /api/events`, `/api/sessions`, `/api/tasks`,
+  `/api/health` are for debugging.
 - **`backend/events.py`**: a bounded in-memory ring buffer plus an append-only
   `events.jsonl` audit trail (one JSON object per line, the same convention the
   claude-tools bridges use). Also derives the short feed summary and the list of
-  active sessions.
+  active sessions. A session counts as live until its latest event is
+  `SessionEnd` or it has been silent past `server.session_idle_timeout` (30 min
+  default); an in-progress turn, latest event `UserPromptSubmit`, gets a longer
+  grace so a long silent build does not drop its chip.
 - **`backend/narrate.py`**: talks to local Ollama for the spoken one-liner on an
   announcement and for answering questions from the event log. Routes a question
   that starts with "ask claude ..." to the real thing.
@@ -91,7 +97,10 @@ Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         
 
 **Observe.** Claude Code fires a hook, `assist-hook.sh` posts it to `/hook`,
 `events.record()` appends to the buffer and `events.jsonl`, and it is broadcast
-to every `/ws` client. For `Notification` and `Stop`, `narrate.announce_line()`
+to every `/ws` client, followed by the refreshed live-session list. The client
+renders the feed row and, from that `sessions` message, redraws the filter chips;
+if the chip it was filtered to is gone, it falls back to "all". For
+`Notification` and `Stop`, `narrate.announce_line()`
 asks Ollama for one spoken sentence, which is broadcast as text, then (outside
 quiet hours) synthesized by `tts` and broadcast as audio, and if Discord is on,
 posted there.
