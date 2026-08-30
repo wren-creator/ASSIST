@@ -86,9 +86,32 @@ def recent(limit: int = 100, session_id: str | None = None) -> list[dict[str, An
 
 
 def active_sessions() -> list[dict[str, Any]]:
-    """Latest event per session_id, most-recently-active first."""
+    """Sessions considered live right now, most-recently-active first.
+
+    A session drops off the list when:
+      - its latest event is SessionEnd (clean exit), or
+      - it has been silent longer than server.session_idle_timeout.
+
+    A turn in progress (latest event UserPromptSubmit, i.e. Claude is working and
+    hasn't hit Stop yet) gets a longer grace before the idle cutoff, so a long
+    silent build or test run doesn't make the chip vanish mid-task. That grace is
+    bounded, not unlimited, so a dropped Stop is still swept eventually rather than
+    pinning the chip forever; a dropped SessionEnd is swept the same way.
+    """
     latest: dict[str, dict[str, Any]] = {}
     for e in _buffer:
         if e["session_id"]:
             latest[e["session_id"]] = e
-    return sorted(latest.values(), key=lambda e: e["ts"], reverse=True)
+
+    now = time.time()
+    timeout = config.get("server", "session_idle_timeout", default=1800)
+
+    live = []
+    for e in latest.values():
+        if e["hook"] == "SessionEnd":
+            continue
+        cutoff = timeout * 3 if e["hook"] == "UserPromptSubmit" else timeout
+        if now - e["ts"] > cutoff:
+            continue
+        live.append(e)
+    return sorted(live, key=lambda e: e["ts"], reverse=True)

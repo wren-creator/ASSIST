@@ -54,6 +54,29 @@ def _in_quiet_hours() -> bool:
     return start <= h or h < end if start > end else start <= h < end
 
 
+# --- background -----------------------------------------------------------------
+
+@app.on_event("startup")
+async def _start_background() -> None:
+    asyncio.create_task(_session_sweeper())
+
+
+async def _session_sweeper() -> None:
+    """Idle timeouts change the active-session list with no new event to trigger a
+    /hook broadcast, so push a fresh list whenever the set of ids actually shifts.
+    Cheap: skips entirely when no PWA is connected, and only sends on a change."""
+    last_ids: list[str] = []
+    while True:
+        await asyncio.sleep(15)
+        if not _clients:
+            continue
+        sessions = events.active_sessions()
+        ids = [s["session_id"] for s in sessions]
+        if ids != last_ids:
+            last_ids = ids
+            await broadcast({"type": "sessions", "sessions": sessions})
+
+
 # --- hooks ------------------------------------------------------------------
 
 @app.post("/hook")
@@ -66,6 +89,7 @@ async def hook(request: Request):
 
     evt = events.record(raw)
     await broadcast({"type": "event", "event": evt})
+    await broadcast({"type": "sessions", "sessions": events.active_sessions()})
 
     if evt["hook"] in (config.get("announce", default=[]) or []):
         asyncio.create_task(_announce(evt))

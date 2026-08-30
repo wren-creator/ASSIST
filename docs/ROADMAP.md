@@ -9,6 +9,8 @@ Status markers: `done`, `next`, `planned`, `idea`.
 - [x] Hook shim into `~/.claude/settings.json`, six events, non-blocking
 - [x] FastAPI host: `POST /hook`, `WS /ws`, `events.jsonl` audit trail
 - [x] Live feed in a static PWA, per-project filter chips
+- [x] Chips show live sessions only: host prunes on `SessionEnd` and on an idle
+      timeout, pushes the list over `WS`, client drops a stale filter to "all"
 - [x] Spoken announcements on `Notification` and `Stop`, with quiet hours
 - [x] Local speech in (faster-whisper) and out (`say`, Kokoro, Piper)
 - [x] Local narration and Q&A over the event log (Ollama)

@@ -113,7 +113,9 @@ Put the channel id in `backend/config.yaml` under `discord.channel_id` and set
 ## Using it
 
 - **Live feed:** every hook event, newest at the bottom. Tap a project chip to
-  filter to one session.
+  filter to one session. Chips are the sessions that are live right now, a
+  session drops off when it ends or goes quiet past
+  `server.session_idle_timeout`.
 - **Announcements:** on `Notification` (Claude needs you) and `Stop` (Claude
   finished), ASSIST speaks a one-line summary and, if Discord is on, posts it.
   Silenced during `quiet_hours` (feed and Discord still update).

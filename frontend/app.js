@@ -48,8 +48,10 @@ function handle(msg) {
       break;
     case "event":
       addEvent(msg.event);
-      touchSession(msg.event);
       scrollFeed();
+      break;
+    case "sessions":   // authoritative live-session list from the host
+      renderSessions(msg.sessions || []);
       break;
     case "say":       // announcement text (audio may follow separately)
       addBubble("assist", msg.text);
@@ -133,18 +135,22 @@ function escapeHtml(s) {
 }
 
 // --- session chips ---------------------------------------------------------------
+// The host owns the live-session list (it prunes on SessionEnd and on idle
+// timeout). We just render whatever its last "sessions" message said.
 let sessionState = [];   // [{session_id, project, ts}]
 
 function renderSessions(sessions) {
   sessionState = sessions.map((s) => ({ session_id: s.session_id, project: s.project, ts: s.ts }));
-  drawSessions();
-}
 
-function touchSession(e) {
-  if (!e.session_id) return;
-  const found = sessionState.find((s) => s.session_id === e.session_id);
-  if (found) { found.ts = e.ts; found.project = e.project; }
-  else sessionState.push({ session_id: e.session_id, project: e.project, ts: e.ts });
+  // The session we were filtered to is gone — fall back to "all" so we don't
+  // sit on a ghost filter showing an empty feed.
+  if (activeSession && !sessionState.some((s) => s.session_id === activeSession)) {
+    activeSession = null;
+    feedEl.querySelectorAll(".row").forEach((r) => {
+      r.style.display = visible(r.dataset.session) ? "" : "none";
+    });
+  }
+
   drawSessions();
 }
 
