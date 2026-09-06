@@ -8,6 +8,7 @@ const textEl     = document.getElementById("text");
 const pttEl      = document.getElementById("ptt");
 const muteEl     = document.getElementById("mute");
 const newTaskBtn = document.getElementById("newTaskBtn");
+const quietBtn   = document.getElementById("quietBtn");
 const taskPanel  = document.getElementById("taskPanel");
 const taskName   = document.getElementById("taskName");
 const taskPrompt = document.getElementById("taskPrompt");
@@ -17,6 +18,14 @@ const taskMsg    = document.getElementById("taskMsg");
 let ws = null;
 let activeSession = null;          // session_id filter, or null for "all"
 let muted = false;
+
+// Quiet mode: the feed is a firehose of every tool call. Most of the time you
+// only want the beats that need a human — which project woke up, when Claude is
+// asking for you, when a turn finished. These hooks are the tool-by-tool noise
+// we hide until you tap ALL.
+const QUIET_HIDDEN = new Set(["PreToolUse", "PostToolUse"]);
+let quiet = true;
+try { quiet = localStorage.getItem("assist.quiet") !== "0"; } catch (e) {}
 
 // --- websocket ----------------------------------------------------------------
 function connect() {
@@ -84,6 +93,23 @@ function handle(msg) {
   }
 }
 
+// --- quiet toggle ------------------------------------------------------------
+function drawQuietBtn() {
+  quietBtn.classList.toggle("on", quiet);
+  quietBtn.textContent = quiet ? "QUIET" : "ALL";
+  quietBtn.title = quiet
+    ? "showing only what needs you — tap for every tool call"
+    : "showing every tool call — tap for the quiet view";
+}
+quietBtn.addEventListener("click", () => {
+  quiet = !quiet;
+  try { localStorage.setItem("assist.quiet", quiet ? "1" : "0"); } catch (e) {}
+  drawQuietBtn();
+  refilter();
+  scrollFeed();
+});
+drawQuietBtn();
+
 // --- new task panel ------------------------------------------------------------
 newTaskBtn.addEventListener("click", () => {
   taskPanel.hidden = !taskPanel.hidden;
@@ -99,15 +125,27 @@ document.getElementById("taskStart").addEventListener("click", () => {
 });
 
 // --- feed rendering ----------------------------------------------------------
-function visible(sessionId) {
-  return !activeSession || sessionId === activeSession;
+function visible(sessionId, hook) {
+  if (activeSession && sessionId !== activeSession) return false;
+  if (quiet && QUIET_HIDDEN.has(hook)) return false;
+  return true;
+}
+
+// Re-apply both filters (session chip + quiet) to rows already in the feed.
+function refilter() {
+  feedEl.querySelectorAll(".row").forEach((r) => {
+    r.style.display = visible(r.dataset.session, r.dataset.hook) ? "" : "none";
+  });
 }
 
 function addEvent(e) {
-  if (!visible(e.session_id)) return;
   const row = document.createElement("div");
   row.className = `row hook-${e.hook}`;
   row.dataset.session = e.session_id || "";
+  row.dataset.hook = e.hook || "";
+  // Always in the DOM, just hidden when filtered out, so toggling a filter can
+  // bring it back without a reload.
+  if (!visible(e.session_id, e.hook)) row.style.display = "none";
   const time = new Date(e.ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   row.innerHTML =
     `<div class="meta">` +
@@ -146,9 +184,7 @@ function renderSessions(sessions) {
   // sit on a ghost filter showing an empty feed.
   if (activeSession && !sessionState.some((s) => s.session_id === activeSession)) {
     activeSession = null;
-    feedEl.querySelectorAll(".row").forEach((r) => {
-      r.style.display = visible(r.dataset.session) ? "" : "none";
-    });
+    refilter();
   }
 
   drawSessions();
@@ -168,10 +204,7 @@ function addChip(label, sid) {
   c.onclick = () => {
     activeSession = sid;
     drawSessions();
-    // re-filter the feed in place
-    feedEl.querySelectorAll(".row").forEach((r) => {
-      r.style.display = visible(r.dataset.session) ? "" : "none";
-    });
+    refilter();
   };
   sessionsEl.appendChild(c);
 }
