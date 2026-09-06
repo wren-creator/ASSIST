@@ -75,6 +75,17 @@
     letter-spacing: 1px;
     flex: 0 0 auto;
   }
+  #quietBtn {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--dim);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font: 600 11px/1 var(--mono);
+    letter-spacing: 1px;
+    flex: 0 0 auto;
+  }
+  #quietBtn.on { color: #06121f; background: var(--accent); border-color: var(--accent); }
   #status {
     flex: 0 0 auto;
     font: 600 11px/1 var(--mono);
@@ -302,6 +313,7 @@
 <body>
 <header>
   <h1>ASSIST</h1>
+  <button id="quietBtn" title="showing only what needs you">QUIET</button>
   <button id="newTaskBtn" title="start a project from here">+ task</button>
   <span id="status" class="off">connecting</span>
 </header>
@@ -327,6 +339,6 @@
   <button id="ptt">HOLD</button>
 </footer>
 
-<script src="/static/app.js?v=5"></script>
+<script src="/static/app.js?v=6"></script>
 </body>
 </html>

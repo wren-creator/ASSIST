@@ -112,9 +112,12 @@ Put the channel id in `backend/config.yaml` under `discord.channel_id` and set
 
 ## Using it
 
-- **Live feed:** every hook event, newest at the bottom. Tap a project chip to
-  filter to one session. Chips are the sessions that are live right now, a
-  session drops off when it ends or goes quiet past
+- **Live feed:** newest at the bottom. Starts in **quiet** mode, only the beats
+  that need you: a session starting or ending, `Notification` (Claude wants
+  input), `Stop` (a turn finished), and task lifecycle. Tap **QUIET** in the
+  header to flip to **ALL** and see every tool call; the choice sticks. Tap a
+  project chip to filter to one session. Chips are the sessions that are live
+  right now, a session drops off when it ends or goes quiet past
   `server.session_idle_timeout`.
 - **Announcements:** on `Notification` (Claude needs you) and `Stop` (Claude
   finished), ASSIST speaks a one-line summary and, if Discord is on, posts it.

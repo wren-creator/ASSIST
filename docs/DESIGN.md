@@ -98,8 +98,11 @@ Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         
 **Observe.** Claude Code fires a hook, `assist-hook.sh` posts it to `/hook`,
 `events.record()` appends to the buffer and `events.jsonl`, and it is broadcast
 to every `/ws` client, followed by the refreshed live-session list. The client
-renders the feed row and, from that `sessions` message, redraws the filter chips;
-if the chip it was filtered to is gone, it falls back to "all". For
+renders a feed row for every event and, from that `sessions` message, redraws the
+filter chips; if the chip it was filtered to is gone, it falls back to "all".
+Rows stay in the DOM and are shown or hidden with `display`, so both filters (the
+session chip and the `QUIET`/`ALL` toggle, which hides `PreToolUse`/`PostToolUse`
+and defaults on, sticky in `localStorage`) re-apply in place without a reload. For
 `Notification` and `Stop`, `narrate.announce_line()`
 asks Ollama for one spoken sentence, which is broadcast as text, then (outside
 quiet hours) synthesized by `tts` and broadcast as audio, and if Discord is on,

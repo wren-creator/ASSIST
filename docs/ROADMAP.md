@@ -9,6 +9,9 @@ Status markers: `done`, `next`, `planned`, `idea`.
 - [x] Hook shim into `~/.claude/settings.json`, six events, non-blocking
 - [x] FastAPI host: `POST /hook`, `WS /ws`, `events.jsonl` audit trail
 - [x] Live feed in a static PWA, per-project filter chips
+- [x] Quiet feed by default: the tool-by-tool `PostToolUse` stream is hidden
+      behind a sticky `QUIET`/`ALL` header toggle, so the feed shows the beats
+      that need you — session start/end, `Notification`, `Stop`, task lifecycle
 - [x] Chips show live sessions only: host prunes on `SessionEnd` and on an idle
       timeout, pushes the list over `WS`, client drops a stale filter to "all"
 - [x] Spoken announcements on `Notification` and `Stop`, with quiet hours
