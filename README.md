@@ -9,8 +9,9 @@ it working on" from your couch, and buzzes your phone when you've walked away
 from the desk.
 
 It mostly observes. It can also **kick off a one-shot build** in a new folder
-from the phone ("+ task"), but it doesn't yet let you steer a live session with
-tool-by-tool approvals, that's the next phase (see Roadmap).
+from the phone ("+ task"), and **steer a live session** in operator mode, where
+every edit or command waits for a tap on your phone to allow or deny it.
+Follow-up prompts and surviving a host restart are still to come (see Roadmap).
 
 ## How it works
 
@@ -133,14 +134,24 @@ Put the channel id in `backend/config.yaml` under `discord.channel_id` and set
   New folders run with permissions bypassed (nothing there to break); tick
   "existing project" to run in a folder that's already there (defaults to
   `acceptEdits`). Concurrency is capped in config.
+- **Operator mode (approve each step):** in the "+ task" panel, name an existing
+  project, write a prompt, and tick **operator mode**. ASSIST opens a live
+  Claude Agent SDK session in that folder. Reads and searches run on their own;
+  every edit or command shows up as an **approval card** in the feed with the
+  file path or command, and one tap allows or denies it. Denials go back to
+  Claude, which adjusts. A run stops on its own, on the **stop session**
+  button, or when spend hits `operator.budget_stop_usd`. One operator session
+  at a time. No follow-up prompts yet, and a host restart drops the session
+  (see Roadmap Phase 2).
 
-The last two are the paths that spend your Claude subscription budget.
+The task and operator paths spend your Claude subscription budget.
 
 ## Config
 
 `backend/config.yaml` — server port, Ollama model, TTS engine and voice, which
-hook events get announced, quiet hours, and the Discord channel. Comments in the
-file explain each key.
+hook events get announced, quiet hours, the Discord channel, and the `operator`
+block (approval timeout, budget warn/stop, which tools auto-approve). Comments
+in the file explain each key.
 
 ## Layout
 
@@ -151,6 +162,7 @@ backend/
   narrate.py       Ollama narration/Q&A + "ask claude" escalation
   claude_runner.py run_oneshot() / run_stream() around `claude -p`
   tasks.py         "+ task" one-shot project builds
+  operator.py      live session via the Claude Agent SDK, phone-approved tools
   discord_push.py  optional phone push (token from ~/.discord/.env)
   voice/stt.py     faster-whisper
   voice/tts.py     say / kokoro / piper

@@ -51,6 +51,12 @@ def _resolve_dir(name: str, existing: bool) -> tuple[Path | None, str]:
     return target, ""
 
 
+def resolve_existing_dir(name: str) -> tuple[Path | None, str]:
+    """A project name -> an existing directory under projects_root, with the same
+    containment guard tasks use. Shared with operator mode."""
+    return _resolve_dir(name, existing=True)
+
+
 def running() -> list[dict]:
     return [
         {"task_id": tid, "name": t["name"], "dir": str(t["dir"]),

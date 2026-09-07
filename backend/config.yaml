@@ -64,6 +64,24 @@ tasks:
   new_project_permission_mode: "bypassPermissions"
   existing_project_permission_mode: "acceptEdits"
 
+# Operator mode: one live Claude Code session steered from the phone via the
+# Claude Agent SDK. Every edit/command that isn't in auto_approve_tools pauses
+# and asks the phone to allow or deny. One session at a time. Spends the Claude
+# subscription budget like tasks do.
+operator:
+  enabled: true
+  approval_timeout_seconds: 300     # auto-deny a pending tool call after this long unanswered
+  budget_warn_usd: 2.00             # spoken + feed warning the first time spend crosses this
+  budget_stop_usd: 5.00            # hard ceiling; the session stops when it hits this
+  permission_mode: "default"        # SDK permission mode; "default" routes prompts to the phone
+  auto_approve_tools:               # these run without asking (read-only / harmless)
+    - Read
+    - Glob
+    - Grep
+    - WebSearch
+    - WebFetch
+    - TodoWrite
+
 discord:
   enabled: false          # flip to true once channel_id is set
   channel_id: ""          # numeric channel id; `python -m backend.discord_push --list-guilds` helps find it

@@ -13,6 +13,7 @@ const taskPanel  = document.getElementById("taskPanel");
 const taskName   = document.getElementById("taskName");
 const taskPrompt = document.getElementById("taskPrompt");
 const taskExistingCb = document.getElementById("taskExistingCb");
+const taskOperatorCb = document.getElementById("taskOperatorCb");
 const taskMsg    = document.getElementById("taskMsg");
 
 let ws = null;
@@ -53,6 +54,7 @@ function handle(msg) {
       feedEl.innerHTML = "";
       (msg.events || []).forEach(addEvent);
       renderSessions(msg.sessions || []);
+      (msg.operator && msg.operator.pending || []).forEach(addApprovalCard);
       scrollFeed();
       break;
     case "event":
@@ -90,7 +92,77 @@ function handle(msg) {
         taskMsg.textContent = msg.error || "couldn't start that";
       }
       break;
+    case "operator_ack":
+      if (msg.ok && msg.cwd) {
+        taskMsg.textContent = "";
+        taskPanel.hidden = true;
+        taskName.value = ""; taskPrompt.value = "";
+        addBubble("assist", "operator session in " + msg.cwd);
+      } else if (!msg.ok && msg.error) {
+        taskMsg.textContent = msg.error;
+        addBubble("assist", "⚠ " + msg.error);
+      }
+      break;
+    case "approval_request":
+      addApprovalCard(msg);
+      scrollFeed();
+      break;
+    case "approval_resolved":
+      resolveApprovalCard(msg.tool_use_id);
+      break;
   }
+}
+
+// --- operator approvals ------------------------------------------------------
+function toolSummary(name, input) {
+  input = input || {};
+  if (name === "Bash") return "$ " + String(input.command || "").replace(/\n/g, " ");
+  if (["Edit", "Write", "MultiEdit", "NotebookEdit"].includes(name))
+    return (input.file_path || input.notebook_path || "") + "  (diff view coming in 2c)";
+  if (["Read", "Glob", "Grep"].includes(name))
+    return input.file_path || input.pattern || input.path || "";
+  try { return JSON.stringify(input).slice(0, 300); } catch (e) { return ""; }
+}
+
+function cssEsc(s) {
+  return (window.CSS && CSS.escape) ? CSS.escape(String(s)) : String(s).replace(/[^\w-]/g, "\\$&");
+}
+
+function addApprovalCard(req) {
+  const tuid = req.tool_use_id;
+  if (!tuid || feedEl.querySelector(`.approval[data-tuid="${cssEsc(tuid)}"]`)) return;
+  const card = document.createElement("div");
+  card.className = "approval";
+  card.dataset.tuid = tuid;
+  card.innerHTML =
+    `<div class="ahead"><span class="albl">APPROVE</span>` +
+      `<span class="atool">${escapeHtml(req.tool_name || "tool")}</span></div>` +
+    `<div class="abody">${escapeHtml(toolSummary(req.tool_name, req.input))}</div>` +
+    `<div class="arow"><button class="adeny">Deny</button>` +
+      `<button class="aallow">Allow</button></div>` +
+    `<button class="astop">stop session</button>`;
+  card.querySelector(".aallow").onclick = () => decideApproval(card, tuid, true);
+  card.querySelector(".adeny").onclick = () => decideApproval(card, tuid, false);
+  card.querySelector(".astop").onclick = () => send({ type: "operator_stop" });
+  feedEl.appendChild(card);
+}
+
+function decideApproval(card, tuid, approved) {
+  send({ type: approved ? "operator_approve" : "operator_deny", tool_use_id: tuid });
+  markApprovalDone(card, approved ? "allowed" : "denied");
+}
+
+function resolveApprovalCard(tuid) {
+  const card = feedEl.querySelector(`.approval[data-tuid="${cssEsc(tuid)}"]`);
+  if (card) markApprovalDone(card, "resolved");
+}
+
+function markApprovalDone(card, word) {
+  if (!card || card.classList.contains("done")) return;
+  card.classList.add("done");
+  card.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  const body = card.querySelector(".abody");
+  body.textContent = word + " — " + body.textContent;
 }
 
 // --- quiet toggle ------------------------------------------------------------
@@ -121,7 +193,11 @@ document.getElementById("taskStart").addEventListener("click", () => {
   const prompt = taskPrompt.value.trim();
   if (!name || !prompt) { taskMsg.textContent = "need a name and a prompt"; return; }
   taskMsg.textContent = "starting…";
-  send({ type: "new_task", name, prompt, existing: taskExistingCb.checked });
+  if (taskOperatorCb.checked) {
+    send({ type: "operator_start", name, prompt });
+  } else {
+    send({ type: "new_task", name, prompt, existing: taskExistingCb.checked });
+  }
 });
 
 // --- feed rendering ----------------------------------------------------------
