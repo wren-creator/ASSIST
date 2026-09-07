@@ -37,13 +37,14 @@ and a handful of local models. Nothing about it is a platform.
 ```
 Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         phone / laptop
   ~/.claude/settings.json hooks  ──►    POST /hook   record + fan out            browser PWA (frontend/)
-    SessionStart, PostToolUse,          WS   /ws     feed, audio, task control     · live event feed
+    SessionStart, PostToolUse,          WS   /ws     feed, audio, task + operator   · live event feed
     Notification, Stop, SessionEnd      GET  /api/*  debug / status               · push-to-talk + text
       each runs hooks/assist-hook.sh                                              · "+ task" builds
-      (backgrounds curl, exits 0)       events.py    ring buffer + events.jsonl
+      (backgrounds curl, exits 0)       events.py    ring buffer + events.jsonl   · operator approvals
                                         narrate.py   Ollama summary + Q&A
                                         claude_runner.py   run_oneshot / run_stream around `claude -p`
                                         tasks.py     "+ task" one-shot project builds
+                                        operator.py  live session via Claude Agent SDK, phone-gated tools
                                         voice/stt.py faster-whisper
                                         voice/tts.py say / kokoro / piper
                                         discord_push.py   optional phone push
@@ -59,11 +60,13 @@ Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         
 - **`backend/main.py`**: the FastAPI app. `POST /hook` records events and, for
   `Notification` and `Stop`, spawns an announcement task. `WS /ws` is the
   phone's connection. It gets the live feed and spoken audio, and sends
-  push-to-talk audio, typed questions, and `new_task` requests back. After every
-  hook it broadcasts a `sessions` message with the current live-session list, and
-  a 15s background sweep re-sends that list when an idle timeout changes it with
-  no new event to ride on. `GET /api/events`, `/api/sessions`, `/api/tasks`,
-  `/api/health` are for debugging.
+  push-to-talk audio, typed questions, `new_task`, and the operator messages
+  (`operator_start` / `operator_stop` / `operator_approve` / `operator_deny`)
+  back. After every hook it broadcasts a `sessions` message with the current
+  live-session list, and a 15s background sweep re-sends that list when an idle
+  timeout changes it with no new event to ride on. `GET /api/events`,
+  `/api/sessions`, `/api/tasks`, `/api/operator`, `/api/health` are for
+  debugging.
 - **`backend/events.py`**: a bounded in-memory ring buffer plus an append-only
   `events.jsonl` audit trail (one JSON object per line, the same convention the
   claude-tools bridges use). Also derives the short feed summary and the list of
@@ -82,7 +85,15 @@ Claude Code (VSCode / terminal)        ASSIST host  (backend/, FastAPI)         
   under `tasks.projects_root` (default `~/git`), guards against path traversal
   and clobbering, `git init`s a new one, and runs `claude -p` there. Progress
   goes to the feed as `Task` events, and the result is spoken and pushed as
-  audio.
+  audio. `resolve_existing_dir()` is the shared containment guard operator mode
+  reuses.
+- **`backend/operator.py`**: one live `ClaudeSDKClient` session at a time.
+  `_on_tool` is the `can_use_tool` callback: it broadcasts an `approval_request`
+  and parks on an `asyncio.Future` until a phone `operator_approve` /
+  `operator_deny` (or the `approval_timeout_seconds` auto-deny). `stop()`
+  interrupts and waits for the run to wind down. Budget warn/stop and the list
+  of auto-approved tools are the `operator` block in config; all read per call,
+  so no restart to retune.
 - **`backend/voice/`**: `stt.py` wraps faster-whisper (`base`, CPU/int8, model
   kept hot for the process). `tts.py` picks `say`, Kokoro, or Piper from config
   and always falls back to `say`.
@@ -120,15 +131,33 @@ fresh folder, acceptEdits for an existing one), then `claude_runner.run_stream()
 runs the build. Each tool call becomes a `Task` feed event, and on finish the
 result is spoken and pushed as audio.
 
+**Operator.** The phone submits `operator_start` with an existing project name.
+`operator.start()` enforces one session at a time, then `_drive()` opens a
+`ClaudeSDKClient` (Claude Agent SDK, subprocess transport, same subscription
+auth as `claude -p`) with `can_use_tool=_on_tool`, `allowed_tools` from
+`operator.auto_approve_tools`, `max_budget_usd` from `operator.budget_stop_usd`,
+and `setting_sources=[]` so ambient `~/.claude` allow rules can't shadow the
+gate. When Claude calls a tool that isn't auto-approved, `_on_tool` parks on an
+`asyncio.Future` keyed by `tool_use_id`, broadcasts `approval_request`, and
+waits; a phone `operator_approve` / `operator_deny` calls `operator.resolve()`
+which sets that future (same event loop, so a plain `set_result`). No answer
+inside `operator.approval_timeout_seconds` auto-denies. `operator_stop`
+resolves pending futures to deny, calls `client.interrupt()`, and awaits the
+drive task so the one-session slot is free again. Tool lines and lifecycle are
+`Operator` feed events; the `hello` frame carries `operator.snapshot()` so a
+reconnecting phone re-renders a pending approval card.
+
 ## Key decisions
 
 - **Hooks, not a wrapper, for observation.** Hooks are the supported, stable way
   to see what Claude Code is doing without sitting in front of it.
   Screen-scraping a terminal would break on every UI tweak.
-- **`claude -p`, not the Agent SDK, for v1.** The one-shot builds don't need a
-  long-lived session or tool approvals, and `claude -p` runs on the subscription
-  with zero extra wiring. The Agent SDK comes in for operator mode, where
-  `can_use_tool` approvals actually matter.
+- **`claude -p` for one-shots, the Agent SDK for operator mode.** The tier-1
+  builds don't need a long-lived session or tool approvals, and `claude -p` runs
+  on the subscription with zero extra wiring, so `claude_runner.py` stays as-is.
+  Operator mode needs a session that lives across turns and a `can_use_tool`
+  callback, so it's a separate module (`operator.py`) on the Claude Agent SDK,
+  which shells to the bundled `claude` CLI and inherits the same auth.
 - **Web Audio API for playback, not `<audio>`.** iOS Safari rejects `play()` on
   an element with no source, so the "unlock on first tap" trick silently failed.
   Creating the `AudioContext` inside a real tap and playing decoded PCM buffers
@@ -152,12 +181,18 @@ result is spoken and pushed as audio.
   `bypassPermissions` in a fresh folder. Treat it like running `claude
   --dangerously-skip-permissions` yourself in a new directory, because that is
   what it is.
+- **Operator mode is the safe path, but the phone is the only gate.** Every
+  write or command waits for a tap (auto-approve is read-only tools only), and
+  `setting_sources=[]` keeps local allow rules from bypassing it. But there's no
+  auth on the host, so anyone who can reach `/ws` can answer an approval. Same
+  network boundary as everything else here.
 - **The audit trail is `events.jsonl`.** Every hook event and every task step is
   a line in it.
 
 ## What it deliberately doesn't do yet
 
-- Steer a live Claude Code session with per-tool approvals (operator mode).
+- Show a diff on the operator approval card, take follow-up prompts into a live
+  operator session, or survive a host restart mid-session (Roadmap Phase 2).
 - Authenticate clients.
 - Keep one conversation coherent across the laptop and the phone.
 - Offer a wake word or always-listening mode. Push-to-talk only.

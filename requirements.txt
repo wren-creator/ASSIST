@@ -7,6 +7,11 @@ aiohttp>=3.9.0
 pyyaml>=6.0
 python-multipart>=0.0.9
 
+# Operator mode: a live Claude Code session steered from the phone with
+# tool-by-tool approvals. Shells out to the `claude` CLI (subscription auth,
+# no API key), same as the `claude -p` paths.
+claude-agent-sdk>=0.2
+
 # Local speech-to-text. Same model the youtube-bridge already uses.
 faster-whisper>=1.0.0
 

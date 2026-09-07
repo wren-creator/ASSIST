@@ -118,14 +118,14 @@
     padding: 9px 11px;
   }
   #taskPrompt { resize: vertical; min-height: 64px; line-height: 1.4; }
-  #taskExisting {
+  .taskCheck {
     display: flex;
     align-items: center;
     gap: 8px;
     font: 500 13px/1 var(--sans);
     color: var(--dim);
   }
-  #taskExisting input { width: 17px; height: 17px; }
+  .taskCheck input { width: 17px; height: 17px; }
   .taskRow { display: flex; gap: 8px; }
   .taskRow button {
     flex: 1;
@@ -207,6 +207,7 @@
   .row.hook-Stop { border-left-color: var(--ok); }
   .row.hook-Stop .s { color: var(--ok); }
   .row.hook-Task { border-left-color: var(--accent); }
+  .row.hook-Operator { border-left-color: var(--accent); }
   .row.hook-SessionStart, .row.hook-SessionEnd { opacity: 0.75; }
   .row.hook-SessionStart .s, .row.hook-SessionEnd .s { font-style: italic; color: var(--dim); }
 
@@ -236,6 +237,59 @@
     color: var(--accent);
     font: 600 13px/1 var(--sans);
   }
+
+  /* ── operator approval card ─────────────────────────────────────────── */
+  .approval {
+    align-self: stretch;
+    border: 1px solid var(--warn);
+    background: rgba(230, 203, 90, 0.08);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .approval.done {
+    opacity: 0.55;
+    border-color: var(--line);
+    background: rgba(255, 255, 255, 0.02);
+  }
+  .approval .ahead { display: flex; align-items: baseline; gap: 8px; }
+  .approval .albl {
+    font: 700 10px/1 var(--mono);
+    letter-spacing: 1.5px;
+    color: var(--warn);
+  }
+  .approval .atool { font: 600 13px/1 var(--sans); color: var(--text); }
+  .approval .abody {
+    font: 400 12px/1.4 var(--mono);
+    color: var(--dim);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+  .approval .arow { display: flex; gap: 8px; }
+  .approval .arow button {
+    flex: 1;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font: 600 13px/1 var(--sans);
+    border: 1px solid var(--line);
+  }
+  .approval .aallow { background: var(--ok); border-color: var(--ok); color: #06210f; }
+  .approval .adeny { background: var(--alert); border-color: var(--alert); color: #200; }
+  .approval .astop {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    color: var(--dim);
+    font: 500 11px/1 var(--mono);
+    letter-spacing: 1px;
+    padding: 2px 0;
+    text-decoration: underline;
+  }
+  .approval button:disabled { opacity: 0.5; }
 
   /* ── footer input bar ───────────────────────────────────────────────── */
   footer {
@@ -320,7 +374,8 @@
 
 <div id="taskPanel" hidden>
   <input id="taskName" placeholder="project name" autocomplete="off" autocapitalize="off" spellcheck="false">
-  <label id="taskExisting"><input type="checkbox" id="taskExistingCb"> run in an existing project</label>
+  <label id="taskExisting" class="taskCheck"><input type="checkbox" id="taskExistingCb"> run in an existing project</label>
+  <label class="taskCheck"><input type="checkbox" id="taskOperatorCb"> operator mode (approve each step)</label>
   <textarea id="taskPrompt" placeholder="What should Claude build? Be specific."></textarea>
   <div class="taskRow">
     <button id="taskCancel">cancel</button>
@@ -339,6 +394,6 @@
   <button id="ptt">HOLD</button>
 </footer>
 
-<script src="/static/app.js?v=6"></script>
+<script src="/static/app.js?v=7"></script>
 </body>
 </html>

@@ -50,21 +50,27 @@ Status markers: `done`, `next`, `planned`, `idea`.
 
 ---
 
-## Phase 2. Operator mode  ·  planned
+## Phase 2. Operator mode  ·  in progress
 
 Drive a live Claude Code session from the phone, not just fire one-shots.
 
-- [ ] Swap `claude -p` for the **Claude Agent SDK** so a session stays alive
-      across turns.
-- [ ] **Tool-by-tool approvals** via the SDK's `can_use_tool` callback. Each
-      edit or command pauses and asks the phone, one tap to allow or deny.
-- [ ] **Diff view** in the PWA for a pending edit before you approve it.
+- [x] Swap `claude -p` for the **Claude Agent SDK** so a session stays alive
+      across turns. `backend/operator.py` wraps `ClaudeSDKClient`; one session
+      at a time, `+ task` panel has an "operator mode" checkbox.
+- [x] **Tool-by-tool approvals** via the SDK's `can_use_tool` callback. Each
+      edit or command that isn't in `operator.auto_approve_tools` pauses and
+      asks the phone, one tap to allow or deny. Auto-deny on a config timeout;
+      `operator_stop` interrupts a live run.
+- [x] A budget guard: `operator.budget_warn_usd` speaks a warning when spend
+      crosses it, `operator.budget_stop_usd` is a hard ceiling (the SDK's
+      `max_budget_usd`) that ends the session.
+- [ ] **Diff view** in the PWA for a pending edit before you approve it. Right
+      now the approval card shows the file path and the raw tool input.
 - [ ] **Follow-up prompts** into a running session, with streamed output back.
 - [ ] Session **persistence** so a build keeps running on the Mac while you're
-      away and you pick it back up when you reconnect.
-- [ ] A budget guard that warns (and optionally stops) when a session's spend
-      crosses a configurable line, since operator mode spends the subscription
-      on every run.
+      away and you pick it back up when you reconnect. Today a disconnect that
+      doesn't kill the host is survivable (the host holds the client, the
+      `hello` frame replays any pending approval); a host restart is not.
 
 ---
 

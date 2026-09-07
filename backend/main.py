@@ -23,7 +23,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, discord_push, events, narrate, tasks
+from . import config, discord_push, events, narrate, operator, tasks
 from .voice import stt, tts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -127,6 +127,7 @@ async def ws(ws: WebSocket):
         "type": "hello",
         "sessions": events.active_sessions(),
         "events": events.recent(limit=120),
+        "operator": operator.snapshot(),
     })
     try:
         while True:
@@ -162,6 +163,27 @@ async def _handle_ws_message(ws: WebSocket, msg: dict) -> None:
             broadcast=broadcast,
         )
         await ws.send_json({"type": "task_ack", **res})
+        return
+
+    if kind == "operator_start":
+        res = await operator.start(
+            (msg.get("name") or "").strip(),
+            (msg.get("prompt") or "").strip(),
+            broadcast=broadcast,
+        )
+        await ws.send_json({"type": "operator_ack", **res})
+        return
+
+    if kind == "operator_stop":
+        res = await operator.stop(broadcast=broadcast)
+        await ws.send_json({"type": "operator_ack", **res})
+        return
+
+    if kind in ("operator_approve", "operator_deny"):
+        ok = operator.resolve((msg.get("tool_use_id") or "").strip(),
+                              approved=(kind == "operator_approve"))
+        if not ok:
+            await ws.send_json({"type": "error", "text": "no pending approval for that id"})
         return
 
     if kind == "audio":
@@ -208,6 +230,11 @@ def api_sessions():
 @app.get("/api/tasks")
 def api_tasks():
     return tasks.running()
+
+
+@app.get("/api/operator")
+def api_operator():
+    return operator.snapshot()
 
 
 @app.get("/api/health")
