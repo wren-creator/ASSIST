@@ -4,7 +4,7 @@
 fastapi>=0.110
 uvicorn[standard]>=0.27
 aiohttp>=3.9.0
-pyyaml>=6.0
+pyyaml>=6.0.3
 python-multipart>=0.0.9
 
 # Operator mode: a live Claude Code session steered from the phone with
