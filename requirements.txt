@@ -5,7 +5,7 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 aiohttp>=3.9.0
 pyyaml>=6.0
-python-multipart>=0.0.9
+python-multipart>=0.0.32
 
 # Operator mode: a live Claude Code session steered from the phone with
 # tool-by-tool approvals. Shells out to the `claude` CLI (subscription auth,
