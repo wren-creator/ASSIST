@@ -34,6 +34,7 @@ echo "Starting ASSIST host on $BIND:$PORT ..."
 nohup python3 -m uvicorn backend.main:app --host "$BIND" --port "$PORT" >> "$LOG_FILE" 2>&1 &
 echo $! > "$PID_FILE"
 echo "ASSIST started (PID $(cat "$PID_FILE")). Logs: $LOG_FILE"
+echo "Pair a phone: ./venv/bin/python -m backend.auth --pair"
 if [ "$BIND" = "127.0.0.1" ]; then
     echo "Loopback only. Phone access is via 'tailscale serve $PORT' (see README)."
 else

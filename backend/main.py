@@ -19,11 +19,11 @@ import datetime as _dt
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, discord_push, events, narrate, operator, tasks
+from . import auth, config, discord_push, events, narrate, operator, tasks
 from .voice import stt, tts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -58,6 +58,7 @@ def _in_quiet_hours() -> bool:
 
 @app.on_event("startup")
 async def _start_background() -> None:
+    auth.get_token()   # create ~/.assist/token now, so `--pair` works before the first request
     asyncio.create_task(_session_sweeper())
 
 
@@ -79,7 +80,7 @@ async def _session_sweeper() -> None:
 
 # --- hooks ------------------------------------------------------------------
 
-@app.post("/hook")
+@app.post("/hook", dependencies=[Depends(auth.require)])
 async def hook(request: Request):
     try:
         raw = await request.json()
@@ -119,9 +120,34 @@ async def _announce(evt: dict) -> None:
 
 # --- PWA websocket --------------------------------------------------------------
 
+WS_AUTH_TIMEOUT = 5          # seconds to present the token after connecting
+WS_CLOSE_UNAUTHORIZED = 4401  # app-defined close code the client treats as "not paired"
+
+
+async def _ws_authenticate(ws: WebSocket) -> bool:
+    """Browsers can't set headers on a WebSocket, so the token is the first message.
+    Nothing is sent, and the socket isn't added to _clients, until it checks out.
+    A page on another origin can open this socket but can't read the token."""
+    try:
+        msg = await asyncio.wait_for(ws.receive_json(), timeout=WS_AUTH_TIMEOUT)
+        ok = isinstance(msg, dict) and msg.get("type") == "auth" and auth.check(msg.get("token"))
+    except Exception:  # noqa: BLE001 - timeout, disconnect, or not JSON: all "no"
+        ok = False
+    if not ok:
+        log.warning("rejected /ws from %s: bad or missing token",
+                    ws.client.host if ws.client else "?")
+        try:
+            await ws.close(code=WS_CLOSE_UNAUTHORIZED)
+        except Exception:  # noqa: BLE001 - peer already gone
+            pass
+    return ok
+
+
 @app.websocket("/ws")
 async def ws(ws: WebSocket):
     await ws.accept()
+    if not await _ws_authenticate(ws):
+        return
     _clients.add(ws)
     await ws.send_json({
         "type": "hello",
@@ -217,29 +243,30 @@ async def _respond(ws: WebSocket, question: str, session_id: str | None) -> None
 
 # --- debug JSON --------------------------------------------------------------
 
-@app.get("/api/events")
+@app.get("/api/events", dependencies=[Depends(auth.require)])
 def api_events(limit: int = 100, session_id: str | None = None):
     return events.recent(limit=limit, session_id=session_id)
 
 
-@app.get("/api/sessions")
+@app.get("/api/sessions", dependencies=[Depends(auth.require)])
 def api_sessions():
     return events.active_sessions()
 
 
-@app.get("/api/tasks")
+@app.get("/api/tasks", dependencies=[Depends(auth.require)])
 def api_tasks():
     return tasks.running()
 
 
-@app.get("/api/operator")
+@app.get("/api/operator", dependencies=[Depends(auth.require)])
 def api_operator():
     return operator.snapshot()
 
 
 @app.get("/api/health")
 def api_health():
-    return {"ok": True, "clients": len(_clients)}
+    # Public on purpose: liveness only, no counts, nothing about sessions.
+    return {"ok": True}
 
 
 # --- PWA static ------------------------------------------------------------------
@@ -263,4 +290,6 @@ def manifest():
 
 @app.get("/sw.js")
 def service_worker():
-    return FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript")
+    # no-cache so a phone picks up a new shell right away instead of a stale worker
+    return FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript",
+                        headers={"Cache-Control": "no-cache"})

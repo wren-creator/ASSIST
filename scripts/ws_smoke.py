@@ -12,6 +12,8 @@ import urllib.request
 
 import aiohttp
 
+import _auth
+
 PORT = 8787
 
 
@@ -19,7 +21,7 @@ def fire_hook(payload: dict):
     req = urllib.request.Request(
         f"http://127.0.0.1:{PORT}/hook",
         data=json.dumps(payload).encode(),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", **_auth.headers()},
         method="POST",
     )
     urllib.request.urlopen(req, timeout=2).read()
@@ -29,6 +31,7 @@ async def main():
     question = sys.argv[1] if len(sys.argv) > 1 else "what is happening right now"
     async with aiohttp.ClientSession() as s:
         async with s.ws_connect(f"http://127.0.0.1:{PORT}/ws") as ws:
+            await _auth.ws_login(ws)
             hello = await ws.receive_json()
             print(f"hello: {len(hello.get('events', []))} events, "
                   f"{len(hello.get('sessions', []))} sessions")

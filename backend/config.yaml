@@ -2,8 +2,8 @@
 # Discord bot token is read separately from ~/.discord/.env (never stored here).
 
 server:
-  host: "127.0.0.1"      # loopback only; there is no auth. Use `tailscale serve` for the phone,
-                         # or set ASSIST_BIND=0.0.0.0 in start.sh for a trusted home LAN.
+  host: "127.0.0.1"      # loopback only. Use `tailscale serve` for the phone (HTTPS),
+                         # or ASSIST_BIND=0.0.0.0 for a trusted home LAN (plain HTTP).
   port: 8787
   event_buffer: 400      # how many recent hook events to keep in memory for the feed + narration
   session_idle_timeout: 1800   # seconds a session can go silent before its chip drops off.

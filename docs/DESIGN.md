@@ -163,16 +163,38 @@ reconnecting phone re-renders a pending approval card.
   Creating the `AudioContext` inside a real tap and playing decoded PCM buffers
   is the reliable path.
 - **Loopback bind by default.** The earlier `0.0.0.0` default was fine at home
-  and a liability on any other network, since the host has no auth. Tailscale in
+  and a liability on any other network, since auth wasn't there yet. Tailscale in
   front of loopback gives one stable hostname that follows the laptop.
 - **One static page, no framework.** The whole client is a feed, a text box, a
   mic button, and a small form. A build step would cost more than it returns.
 
 ## Security model
 
-- **No auth on the host.** Access control is the network boundary: loopback plus
-  Tailscale. This is the weakest part of the design and the first roadmap item
-  (a shared token on `/ws` and `/hook`).
+- **One shared token on every data path.** `backend/auth.py` generates a 256-bit
+  secret into `~/.assist/token` (0600, dir 0700, created with `O_EXCL` so there's
+  no window where it's world-readable) and compares with `hmac.compare_digest`.
+  `/hook` and `/api/*` take a bearer header. `/ws` takes it as the first message
+  and sends nothing, and keeps the socket out of `_clients`, until it checks out;
+  a wrong or missing token closes with 4401 after at most 5 seconds. Only the
+  static shell and a bare `/api/health` are public. Loopback is deliberately not
+  a trust signal, since `tailscale serve` arrives from 127.0.0.1 as well.
+- **Why the token isn't in `config.yaml`.** That file is tracked, so a secret
+  there is one `git add` from public. It lives under `~/.assist/` instead.
+- **No Origin check on `/ws`.** Behind `tailscale serve` the `Origin` and `Host`
+  the app sees can legitimately differ, and a strict match would reject the
+  phone. It isn't needed: a page on another origin can open the socket, but it
+  can't read the token out of this origin's `localStorage`, so it can't pass the
+  first message.
+- **Pairing rides in the URL fragment.** `https://host/#t=...` never reaches a
+  server, so it isn't in access logs or `Referer`. The page stores it in
+  `localStorage` and strips it from the address bar. A 4401 close makes the
+  client forget the token and stop retrying instead of hammering the host.
+- **Rotation takes effect immediately for new requests.** The host re-reads the
+  token file when its mtime changes. Sockets that are already open keep running
+  until the host restarts, which is why `--rotate` tells you to restart.
+- **A token stolen from the phone is the whole game.** There's one token, no
+  per-device identity, no expiry. Fine for one owner, and the first thing to
+  revisit if this ever has a second user (see Roadmap).
 - **Secrets stay out of the repo.** Discord token from `~/.discord/.env`. Claude
   auth is whatever the logged-in CLI already has.
 - **Task sandboxing is directory-scoped, not real isolation.** `tasks.py`
@@ -183,9 +205,8 @@ reconnecting phone re-renders a pending approval card.
   what it is.
 - **Operator mode is the safe path, but the phone is the only gate.** Every
   write or command waits for a tap (auto-approve is read-only tools only), and
-  `setting_sources=[]` keeps local allow rules from bypassing it. But there's no
-  auth on the host, so anyone who can reach `/ws` can answer an approval. Same
-  network boundary as everything else here.
+  `setting_sources=[]` keeps local allow rules from bypassing it. Answering an
+  approval needs a paired `/ws`, so it's as strong as the token.
 - **The audit trail is `events.jsonl`.** Every hook event and every task step is
   a line in it.
 
@@ -193,7 +214,8 @@ reconnecting phone re-renders a pending approval card.
 
 - Show a diff on the operator approval card, take follow-up prompts into a live
   operator session, or survive a host restart mid-session (Roadmap Phase 2).
-- Authenticate clients.
+- Tell devices apart. There's one token for everything, so you can't revoke a
+  single lost phone without rotating for all of them.
 - Keep one conversation coherent across the laptop and the phone.
 - Offer a wake word or always-listening mode. Push-to-talk only.
 - Send real PWA push notifications. Discord is the stand-in.

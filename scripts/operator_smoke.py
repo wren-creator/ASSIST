@@ -17,6 +17,8 @@ import time
 
 import aiohttp
 
+import _auth
+
 PORT = 8787
 NAME = sys.argv[1] if len(sys.argv) > 1 else "ASSIST"
 PROMPT = (sys.argv[2] if len(sys.argv) > 2 and sys.argv[2].strip() else (
@@ -34,6 +36,7 @@ DECISION = ("ignore" if _d.startswith("i")
 async def main() -> None:
     async with aiohttp.ClientSession() as s:
         async with s.ws_connect(f"http://127.0.0.1:{PORT}/ws") as ws:
+            await _auth.ws_login(ws)
             await ws.receive_json()  # hello
             await ws.send_json({"type": "operator_start", "name": NAME, "prompt": PROMPT})
             t0 = time.time()

@@ -29,9 +29,14 @@ Status markers: `done`, `next`, `planned`, `idea`.
 
 ## Phase 1. Hardening  ·  next
 
-- [ ] **Token auth** on `/ws` and `/hook`. A shared secret in `config.yaml`,
-      sent as a query param or header, checked on connect. Closes the "no auth
-      on a shared network" gap that loopback and Tailscale currently paper over.
+- [x] **Token auth** on `/ws`, `/hook` and `/api/*`. One shared secret in
+      `~/.assist/token` (not `config.yaml`, which is tracked), bearer header on
+      HTTP and first-message auth on the WebSocket, pairing by URL fragment,
+      `python -m backend.auth --pair` / `--rotate`. Closes the "no auth on a
+      shared network" gap.
+- [ ] **Per-device tokens and revoke.** The single shared token means a lost
+      phone forces a rotate for every device. Issue one token per paired device,
+      list them, revoke one. Also a terminal QR for `--pair`.
 - [ ] **Task controls from the phone.** Cancel a running task, see elapsed time
       and current step, tail the last N lines. The backend already tracks
       running tasks, so this needs `WS` messages and UI.

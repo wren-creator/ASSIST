@@ -28,20 +28,62 @@ const QUIET_HIDDEN = new Set(["PreToolUse", "PostToolUse"]);
 let quiet = true;
 try { quiet = localStorage.getItem("assist.quiet") !== "0"; } catch (e) {}
 
+// --- pairing ------------------------------------------------------------------
+// The host's token arrives once in the URL fragment (https://host/#t=...). The
+// fragment is never sent to a server, so it stays out of logs. Keep it in
+// localStorage and wipe it from the address bar.
+const WS_UNAUTHORIZED = 4401;   // host's "bad or missing token" close code
+let token = "";
+try {
+  const m = location.hash.match(/[#&]t=([^&]+)/);
+  if (m) {
+    localStorage.setItem("assist.token", decodeURIComponent(m[1]));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  token = localStorage.getItem("assist.token") || "";
+} catch (e) {}
+
+function forgetToken() {
+  token = "";
+  try { localStorage.removeItem("assist.token"); } catch (e) {}
+}
+
+function showNotPaired(why) {
+  setStatus("unpaired");
+  addBubble("assist", why + " On the Mac, run: ./venv/bin/python -m backend.auth --pair, " +
+                      "then open the URL it prints on this device.");
+}
+
 // --- websocket ----------------------------------------------------------------
 function connect() {
+  if (!token) { showNotPaired("This device isn't paired yet."); return; }
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(`${proto}//${location.host}/ws`);
 
-  ws.onopen = () => setStatus(true);
-  ws.onclose = () => { setStatus(false); setTimeout(connect, 1500); };
+  // The host sends nothing until it has the token, so the first thing out is auth.
+  // "live" waits for the host's hello, which only comes after the token checks out.
+  ws.onopen = () => ws.send(JSON.stringify({ type: "auth", token }));
+  ws.onclose = (ev) => {
+    if (ev.code === WS_UNAUTHORIZED) {          // wrong or rotated token: retrying can't help
+      forgetToken();
+      showNotPaired("The host rejected this device's token.");
+      return;
+    }
+    setStatus(false);
+    setTimeout(connect, 1500);
+  };
   ws.onerror = () => ws.close();
   ws.onmessage = (ev) => handle(JSON.parse(ev.data));
 }
 
-function setStatus(on) {
-  statusEl.textContent = on ? "live" : "offline";
-  statusEl.className = on ? "on" : "off";
+function setStatus(state) {
+  if (state === "unpaired") {
+    statusEl.textContent = "not paired";
+    statusEl.className = "off";
+    return;
+  }
+  statusEl.textContent = state ? "live" : "offline";
+  statusEl.className = state ? "on" : "off";
 }
 
 function send(obj) {
@@ -51,6 +93,7 @@ function send(obj) {
 function handle(msg) {
   switch (msg.type) {
     case "hello":
+      setStatus(true);
       feedEl.innerHTML = "";
       (msg.events || []).forEach(addEvent);
       renderSessions(msg.sessions || []);

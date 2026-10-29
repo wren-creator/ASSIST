@@ -45,7 +45,8 @@ section, the host binds to loopback by default.
 
 `start.sh` binds to `127.0.0.1` by default. That's deliberate: this laptop
 travels, and on hotel or conference wifi you do not want the host answering to
-everyone on the network (there's no auth on it). Two ways to get the phone in:
+everyone on the network. Auth keeps strangers out (see Pairing and auth below), but
+less exposure is still better. Two ways to get the phone in:
 
 ### Same wifi only, no VPN
 
@@ -53,7 +54,9 @@ everyone on the network (there's no auth on it). Two ways to get the phone in:
 ASSIST_BIND=0.0.0.0 ./start.sh
 ```
 
-Then `http://<this-mac-ip>:8787/` on the phone. The IP is DHCP and changes;
+Then `http://<this-mac-ip>:8787/` on the phone. This is plain HTTP, so the token
+and everything else cross the wifi unencrypted: fine on a home network you
+trust, not anywhere else. The IP is DHCP and changes;
 `http://$(scutil --get LocalHostName).local:8787/` is usually more stable.
 
 ### Anywhere, including on the road (Tailscale)
@@ -78,6 +81,32 @@ wifi or cell. One stable hostname, set once.
 Nothing in ASSIST changes, the web client talks to whatever host you loaded it
 from. The Mac has to be awake and online; `caffeinate -s` while it runs.
 
+### Pairing and auth
+
+The host wants a token on every door except the static page. It's one random
+secret, generated the first time the host starts and kept in `~/.assist/token`
+(mode 0600, outside the repo). `ASSIST_TOKEN` in the environment overrides it.
+
+```bash
+./venv/bin/python -m backend.auth --pair     # prints the URL that pairs a phone
+./venv/bin/python -m backend.auth --rotate   # new token; restart the host, re-pair
+```
+
+`--pair` prints your Tailscale address with the token after a `#`. Open that on
+the phone once. The page keeps the token and removes it from the address bar. The
+part after `#` is never sent to a server, so it stays out of logs. Treat the URL
+like a password. If the phone ever shows "not paired", the token was rotated or
+the page was never paired: run `--pair` again.
+
+`/hook` and `/api/*` take `Authorization: Bearer <token>`. `/ws` takes the token
+as its first message, because browsers can't set headers on a WebSocket, and says
+nothing until it has it. `/api/health` and the static page stay public. The hook
+shim finds the token on its own, from `ASSIST_TOKEN` or `~/.assist/token`.
+
+The dev scripts in `scripts/` read the same token. `scripts/auth_smoke.py` checks
+that every door says no without it; run it against a throwaway host, see its
+docstring.
+
 ### Hooks
 
 `start.sh` does not touch your Claude Code config. The hooks that feed ASSIST
@@ -87,7 +116,8 @@ Claude Code session (or restart it) so the new config is picked up. Review or
 disable them anytime from `/hooks`.
 
 The shim forwards each event with a 1-second-capped `curl` and always exits 0,
-so a stopped or slow ASSIST host never delays a Claude Code turn.
+so a stopped or slow ASSIST host never delays a Claude Code turn. It sends the
+bearer token too (see Pairing and auth); without one the host just answers 401.
 
 ### Voice
 

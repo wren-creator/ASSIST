@@ -12,6 +12,8 @@ import time
 
 import aiohttp
 
+import _auth
+
 PORT = 8787
 NAME = sys.argv[1] if len(sys.argv) > 1 else "assist-tier1-smoke"
 PROMPT = sys.argv[2] if len(sys.argv) > 2 else (
@@ -23,6 +25,7 @@ PROMPT = sys.argv[2] if len(sys.argv) > 2 else (
 async def main() -> None:
     async with aiohttp.ClientSession() as s:
         async with s.ws_connect(f"http://127.0.0.1:{PORT}/ws") as ws:
+            await _auth.ws_login(ws)
             await ws.receive_json()  # hello
             await ws.send_json({"type": "new_task", "name": NAME, "prompt": PROMPT, "existing": False})
             t0 = time.time()
