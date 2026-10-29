@@ -184,4 +184,4 @@ start.sh stop.sh
 
 ## License
 
-Private. Not for redistribution.
+MIT. See [LICENSE](LICENSE).
